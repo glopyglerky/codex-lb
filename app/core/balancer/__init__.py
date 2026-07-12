@@ -16,6 +16,7 @@ from app.core.balancer.logic import (
     RoutingCostsByAccount,
     RoutingStrategy,
     SelectionResult,
+    USAGE_LIMIT_REACHED,
     TrafficClass,
     UsageWeightedOrder,
     account_status_for_permanent_failure,
@@ -24,6 +25,7 @@ from app.core.balancer.logic import (
     handle_permanent_failure,
     handle_quota_exceeded,
     handle_rate_limit,
+    pool_usage_exhaustion,
     select_account,
 )
 
@@ -46,6 +48,7 @@ __all__ = [
     "RoutingStrategy",
     "TrafficClass",
     "SelectionResult",
+    "USAGE_LIMIT_REACHED",
     "UsageWeightedOrder",
     "account_status_for_permanent_failure",
     "evaluate_health_tier",
@@ -53,5 +56,6 @@ __all__ = [
     "handle_permanent_failure",
     "handle_quota_exceeded",
     "handle_rate_limit",
+    "pool_usage_exhaustion",
     "select_account",
 ]
