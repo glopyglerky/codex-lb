@@ -1,175 +1,92 @@
 # codex-lb
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+glopyglerky's maintained fork of the ChatGPT account load balancer and proxy,
+at [glopyglerky/codex-lb](https://github.com/glopyglerky/codex-lb), with default
+branch `main`. The verified upstream parent is
+[Soju06/codex-lb](https://github.com/Soju06/codex-lb).
 
-A local proxy and load balancer for ChatGPT accounts.
+This fork keeps the existing account pooling, Responses and Chat Completions
+compatibility routes, usage accounting, API keys and dashboard. Its current
+implementation is Python/FastAPI with a TypeScript/React dashboard. There is no
+Rust replacement in the audited tree. The package manifest declares
+`1.21.0-beta.3`, Python 3.13 or newer, and Alpha status; this is not a new
+qualified release or an installation receipt.
 
-codex-lb pools accounts behind OpenAI-compatible endpoints, keeps a Codex-native endpoint for Codex clients, tracks usage, and provides a browser dashboard for account, key, and routing controls.
+## Start from this fork's source
 
-[![Fork activity](https://img.shields.io/github/last-commit/glopyglerky/codex-lb?label=fork%20updated)](https://github.com/glopyglerky/codex-lb/commits/main)
-[![Upstream release](https://img.shields.io/github/v/release/Soju06/codex-lb?label=upstream%20release)](https://github.com/Soju06/codex-lb/releases/latest)
-[![License](https://img.shields.io/github/license/Soju06/codex-lb)](LICENSE)
-
-> This repository is a personal fork of [Soju06/codex-lb](https://github.com/Soju06/codex-lb). It does not publish its own release or container image. The quick start below runs the upstream image. Review this fork's changes before deploying its source.
-
-## What it does
-
-- Balances requests across eligible ChatGPT accounts while preserving sticky conversation routing.
-- Exposes `/v1` for OpenAI-compatible clients and `/backend-api/codex` for Codex-native traffic.
-- Tracks account usage, request history, costs, quota resets, and routing decisions.
-- Issues scoped API keys with model and rate limits.
-- Supports SQLite by default and PostgreSQL for shared deployments.
-- Provides dashboard password, TOTP, trusted-header, and explicitly disabled authentication modes.
-- Runs locally, in Docker, or through the included Helm chart.
-
-No routing strategy can guarantee account safety. Use normal request volumes, follow the applicable terms, and keep sticky routing enabled unless you have a specific reason to change it.
-
-## How it works
-
-```text
-client -> authentication -> model and account eligibility -> sticky routing
-       -> upstream Codex session -> streamed response -> usage settlement
+```sh
+git clone https://github.com/glopyglerky/codex-lb.git
+cd codex-lb
+uv sync --frozen --dev
+cd frontend
+bun install --frozen-lockfile
+bun run build
+cd ..
+uv run codex-lb --help
+uv run codex-lb --host 127.0.0.1 --port 2455
 ```
 
-The routing contract, retry rules, and session ownership live in [OpenSpec](openspec/specs/account-routing/spec.md). The dashboard exposes the supported strategies. Capacity weighted and relative availability are the sensible defaults for most pools.
+The dashboard is at `http://127.0.0.1:2455`. Add accounts there. Use the
+`/v1` compatibility routes or `/backend-api/codex` according to your client.
+These are source-derived entry points; this documentation change did not build
+or launch the service. The frontend manifest pins Bun 1.3.14. The checked-in
+Dockerfile separately selects Python 3.14.
 
-## Current status
+Configuration uses `CODEX_LB_` environment variables; see
+[`.env.example`](.env.example). Preserve the database and encryption keys when
+changing an existing installation. SQLite is the default and PostgreSQL is an
+optional backend. Dashboard authentication and proxy API-key authentication are
+separate controls. Consult the [admin authentication context](openspec/specs/admin-auth/context.md)
+and [database context](openspec/specs/database-backends/context.md) before
+exposing a service or changing storage.
 
-The fork's default branch is active development code and currently identifies itself as an alpha package. It has no fork-specific release. Use the live badges above for fork activity and the latest upstream release, and use `GET /v1/models` for the current model catalog. Copied model lists age badly.
+The [archived English guide](UPSTREAM-README.md) and
+[archived Chinese guide](UPSTREAM-README.zh-CN.md) retain detailed inherited
+client examples. Commands there using `ghcr.io/soju06`, upstream Helm charts or
+`uvx codex-lb` select upstream distributions. They do not install this fork's
+current source. This README makes no claim that a fork image has been published.
 
-The normative behavior lives under [`openspec/specs/`](openspec/specs/). Configuration defaults come from [`.env.example`](.env.example). Those files are better authorities than a dated feature matrix in this README.
+## Source map
 
-## Quick start
-
-```bash
-docker volume create codex-lb-data
-docker run -d --name codex-lb \
-  -p 2455:2455 -p 1455:1455 \
-  -v codex-lb-data:/var/lib/codex-lb \
-  ghcr.io/soju06/codex-lb:latest
-```
-
-Open [localhost:2455](http://localhost:2455), add an account, then check the live model catalog:
-
-```bash
-curl http://127.0.0.1:2455/v1/models
-```
-
-You can also run the upstream Python package with `uvx codex-lb`.
-
-### First remote login
-
-Local dashboard access bypasses first-run bootstrap. Remote access requires a one-time token when no password exists. The server prints the generated token at startup:
-
-```bash
-docker logs codex-lb
-```
-
-Set `CODEX_LB_DASHBOARD_BOOTSTRAP_TOKEN` before startup if you need a fixed token. Replicas must share the same encryption key so first-run and session state survive restarts.
-
-## Connect Codex
-
-Pick a model from `/v1/models`, then add a provider to `~/.codex/config.toml`:
-
-```toml
-model = "MODEL_ID"
-model_provider = "codex-lb"
-
-[model_providers.codex-lb]
-name = "openai"
-base_url = "http://127.0.0.1:2455/backend-api/codex"
-wire_api = "responses"
-supports_websockets = true
-requires_openai_auth = true
-```
-
-If API key authentication is enabled, add `env_key = "CODEX_LB_API_KEY"` to the provider and export the key before starting Codex:
-
-```bash
-export CODEX_LB_API_KEY="sk-clb-..."
-codex
-```
-
-The same proxy also supports OpenCode, OpenClaw, and the OpenAI SDK. Point Responses API clients at `/v1`. Client behavior and edge cases are documented in the [Responses API context](openspec/specs/responses-api-compat/context.md), [chat completions context](openspec/specs/chat-completions-compat/context.md), and [runtime portability context](openspec/specs/runtime-portability/context.md).
-
-## Authentication
-
-Proxy API key authentication is disabled by default. Without it, protected proxy routes accept only local requests. Enable API key authentication in the dashboard before allowing remote clients, then send:
-
-```text
-Authorization: Bearer sk-clb-...
-```
-
-Dashboard authentication has three explicit modes:
-
-- `standard` uses a password and optional TOTP.
-- `trusted_header` accepts an identity header only from configured proxy CIDRs.
-- `disabled` removes application-level dashboard authentication and should sit behind a separate access boundary.
-
-See the [admin authentication context](openspec/specs/admin-auth/context.md) and [API key contract](openspec/specs/api-keys/spec.md) before exposing the service beyond localhost.
-
-## Configuration and data
-
-Environment variables use the `CODEX_LB_` prefix. [`.env.example`](.env.example) is the complete configuration reference.
-
-| Runtime | Data path |
+| Path | Role |
 | --- | --- |
-| Local or `uvx` | `~/.codex-lb/` |
-| Docker | `/var/lib/codex-lb/` |
+| `app/cli.py` | `codex-lb` command and server launch |
+| `app/main.py` | FastAPI application and lifecycle |
+| `app/modules/` | Proxy, account, authentication and other application domains |
+| `app/db/`, `config/` | Persistence, migrations and packaged configuration |
+| `frontend/src/`, `frontend/package.json` | React dashboard and Bun/Vite tasks |
+| `frontend/vite.config.ts`, `app/static/` | Dashboard output contract, generated assets bundled with the backend |
+| `pyproject.toml`, `uv.lock` | Python dependencies, wheel contents and CLI entry points |
+| `tests/`, `Makefile` | Focused checks and CI entry points |
+| `openspec/`, `DECISIONS.md` | Behavior contracts, rationale and proxy decomposition decision |
+| `Dockerfile`, `docker-compose.yml`, `deploy/helm/codex-lb/` | Retained container and chart build paths |
 
-Back up that directory before upgrades. SQLite is the default. PostgreSQL setup and migration rules are in the [database context](openspec/specs/database-backends/context.md).
+The [fork design and divergence record](openspec/specs/runtime-portability/fork-design.md)
+records ownership, inherited names, path consumers and migration boundaries.
+[Development conventions](AGENTS.md) and [contribution guidance](.github/CONTRIBUTING.md)
+remain relevant. Behavior changes require the existing OpenSpec workflow.
 
-## Kubernetes
+## Verification and migration direction
 
-```bash
-helm install codex-lb oci://ghcr.io/soju06/charts/codex-lb \
-  --set postgresql.auth.password=changeme \
-  --set config.databaseMigrateOnStartup=true \
-  --set migration.schemaGate.enabled=false
-kubectl port-forward svc/codex-lb 2455:2455
-```
+For implementation work, choose focused tests in `tests/unit`, `tests/integration`
+or `tests/e2e`. `make architecture-check` checks the proxy decomposition;
+`make frontend-typecheck` and `make frontend-test-fast` check the dashboard.
+See the Makefile for the broader CI gate. This documentation update ran bounded
+content/path checks, not application tests or deployment acceptance.
 
-The [Helm chart README](deploy/helm/codex-lb/README.md) covers external databases, ingress, authentication, observability, and multi-replica routing.
+Full native Rust conversion and 100% memory-safe Rust using Lustr/BlueFe are
+future goals. Current Python, JavaScript/TypeScript, shell tooling and native
+dependencies remain required. No claim is made that Lustr/BlueFe currently
+builds those components, or that the complete service is memory-safe Rust.
+A future replacement must preserve streaming, retries, cancellation, account
+selection, authentication, accounting and data migration behavior before cutover.
 
-## Development
+## License and origin
 
-This project requires Python 3.13 and uses `uv` for the locked environment.
+The inherited [MIT license](LICENSE), contributor acknowledgements and history
+remain intact. Ownership of this fork does not imply authorship of inherited code.
 
-```bash
-uv sync --frozen
-cd frontend && bun install && cd ..
 
-uv run fastapi run app/main.py --reload
-cd frontend && bun run dev
-```
-
-Run the focused checks before opening a change:
-
-```bash
-uv run --frozen ruff check app tests
-uv run --frozen ruff format --check app tests
-uv run --frozen ty check app
-uv run --frozen pytest tests/unit -q
-```
-
-Behavior changes start in [`openspec/`](openspec/). Read [the contribution rules](.github/CONTRIBUTING.md) for the repository's merge gates.
-
-## Repository map
-
-| Path | Contents |
-| --- | --- |
-| [`app/`](app/) | FastAPI service, routing, persistence, authentication, and proxy runtime |
-| [`frontend/`](frontend/) | Dashboard application |
-| [`openspec/`](openspec/) | Normative behavior and operating context |
-| [`deploy/helm/codex-lb/`](deploy/helm/codex-lb/) | Kubernetes chart and deployment guide |
-| [`tests/`](tests/) | Unit, integration, compatibility, and release checks |
-
-## Contributing and security
-
-This fork retains the upstream project's history and contributors. See the [contributor graph](https://github.com/Soju06/codex-lb/graphs/contributors) and [upstream contribution guide](https://github.com/Soju06/codex-lb/blob/main/.github/CONTRIBUTING.md).
-
-Report vulnerabilities through the [security policy](.github/SECURITY.md). Do not post secrets, account exports, access tokens, or production logs in public issues.
-
-## License
-
-codex-lb is licensed under the [MIT License](LICENSE). Copyright and attribution remain with the upstream authors and contributors.
+Report vulnerabilities through the [security policy](.github/SECURITY.md).
+Inherited contributor history is recorded in [.all-contributorsrc](.all-contributorsrc)
+and the [upstream contributor graph](https://github.com/Soju06/codex-lb/graphs/contributors).
