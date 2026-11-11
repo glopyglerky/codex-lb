@@ -28,7 +28,7 @@ concurrency:
 jobs:
   sync-pr:
     name: Sync Codex labels for PR
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
     if: >-
       ${{
         github.event_name == 'pull_request_target' ||
@@ -57,7 +57,7 @@ jobs:
 
   sync-after-ci:
     name: Sync Codex labels after CI
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
     if: >-
       ${{
         github.event_name == 'schedule' ||

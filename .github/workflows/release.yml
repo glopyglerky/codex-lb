@@ -22,7 +22,7 @@ env:
 jobs:
   release-metadata:
     name: Resolve release metadata
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
 
     outputs:
       tag: ${{ steps.metadata.outputs.tag }}
@@ -48,7 +48,7 @@ jobs:
   build:
     name: Build (sdist + wheel)
     needs: [release-metadata]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
 
     steps:
       - name: Checkout repository
@@ -117,7 +117,7 @@ jobs:
   publish-to-pypi:
     name: Publish to PyPI
     needs: [build]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
 
     permissions:
       id-token: write
@@ -145,7 +145,7 @@ jobs:
   docker-image:
     name: Build and push Docker image
     needs: [build, release-metadata]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
 
     permissions:
       contents: read
@@ -223,7 +223,7 @@ jobs:
   helm-chart:
     name: Publish Helm chart to GHCR
     needs: [build]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
 
     permissions:
       contents: read
@@ -264,7 +264,7 @@ jobs:
   create-github-release:
     name: Create GitHub Release
     needs: [publish-to-pypi, docker-image, helm-chart, release-metadata]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
 
     permissions:
       contents: write
@@ -389,7 +389,7 @@ jobs:
   withdraw-failed-release:
     name: Withdraw failed public release
     needs: [release-metadata, build, publish-to-pypi, docker-image, helm-chart, create-github-release]
-    runs-on: ubuntu-24.04
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['ubuntu-24.04'] || 'ubuntu-24.04' }}
     if: >-
       ${{
         always() &&

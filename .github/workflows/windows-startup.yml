@@ -9,7 +9,7 @@ permissions:
 jobs:
   test-windows-startup:
     name: Windows startup regression
-    runs-on: windows-latest
+    runs-on: ${{ ((github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON(vars.CI_RUNNER_ROUTES || '{}')['windows-latest'] || 'windows-latest' }}
 
     steps:
       - name: Checkout repository
