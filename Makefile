@@ -47,8 +47,8 @@ frontend-build: frontend-install
 
 .PHONY: lint typecheck architecture-check
 lint: architecture-check
-	uvx ruff check .
-	uvx ruff format --check .
+	uvx --from ruff==0.15.20 ruff check .
+	uvx --from ruff==0.15.20 ruff format --check .
 
 architecture-check:
 	python scripts/check_proxy_architecture.py
