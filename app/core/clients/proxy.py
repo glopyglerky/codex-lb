@@ -1558,6 +1558,8 @@ async def _open_upstream_websocket(
     request = cast(Callable[..., Awaitable[aiohttp.ClientResponse]], request_obj)
 
     request_headers = CIMultiDict(headers)
+    # This handshake does not negotiate extensions; do not forward an offer.
+    request_headers.popall(hdrs.SEC_WEBSOCKET_EXTENSIONS, None)
     request_headers.setdefault(hdrs.UPGRADE, "websocket")
     request_headers.setdefault(hdrs.CONNECTION, "Upgrade")
     request_headers.setdefault(hdrs.SEC_WEBSOCKET_VERSION, "13")
@@ -1626,7 +1628,8 @@ async def _open_upstream_websocket(
             transport = conn.transport
             assert transport is not None
             reader = WebSocketDataQueue(conn_proto, 2**16, loop=session._loop)
-            conn_proto.set_parser(WebSocketReader(reader, max_msg_size), reader)
+            parser = WebSocketReader(reader, max_msg_size, compress=False, decode_text=True)
+            conn_proto.set_parser(parser, reader)
             writer = WebSocketWriter(conn_proto, transport, use_mask=True, compress=0, notakeover=False)
         except BaseException as exc:
             if circuit_breaker is not None and not _cb_recorded and isinstance(exc, Exception):
@@ -1648,6 +1651,8 @@ async def _open_upstream_websocket(
             compress=0,
             client_notakeover=False,
         )
+        # Match aiohttp's response ownership while a stalled parser retains input.
+        websocket._parser = parser
         if hold_half_open_probe and is_probe and circuit_breaker is not None:
             _bind_half_open_probe(websocket, circuit_breaker)
         return websocket, websocket

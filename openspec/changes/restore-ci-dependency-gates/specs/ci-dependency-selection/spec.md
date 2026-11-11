@@ -21,6 +21,24 @@ The package metadata MUST declare the reviewed minimum runtime dependency versio
 - **THEN** dependency installation uses the reviewed selected versions without resolving a fresh unpinned Python environment
 - **AND** the image is evaluated by the existing vulnerability scan and severity gate
 
+### Requirement: Dependency updates preserve upstream WebSocket parsing
+
+The custom upstream WebSocket handshake MUST remain compatible with the locked aiohttp release. It MUST decode text messages as strings, preserve binary messages as bytes, disable compression, remove forwarded WebSocket extension offers while preserving unrelated headers, and retain the parser while the response can still drain buffered messages.
+
+#### Scenario: A local upstream sends a burst of uncompressed messages
+
+- **WHEN** the custom handshake connects to an upstream that does not negotiate compression
+- **AND** the upstream sends Unicode text and binary messages followed by a burst that exceeds the reader queue's high-water mark
+- **THEN** the client receives every message in order with its original type and contents
+- **AND** the connection closes without dropping buffered messages
+
+#### Scenario: Forwarded headers advertise an unsupported extension
+
+- **GIVEN** caller-supplied headers contain a WebSocket extension offer with any header-name casing
+- **WHEN** the custom handshake connects to the upstream
+- **THEN** the upstream receives no extension offer
+- **AND** unrelated headers and uncompressed message contents remain intact
+
 ### Requirement: Contributor renames preserve historical coverage
 
 Contributor records MUST use verified GitHub identities and MUST preserve historical login coverage where the attribution checker consumes historical commit logins.

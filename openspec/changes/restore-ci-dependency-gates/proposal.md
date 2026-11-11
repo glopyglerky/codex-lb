@@ -8,6 +8,7 @@ The current native CI run reaches the existing checks but reports dependency-ima
 - Refresh the affected runtime dependency selections and minimum supported versions, and include zlib in the runtime image's explicit OS upgrade list.
 - Add verified current contributor logins while preserving historical login entries and contribution records.
 - Keep the existing CI tests, vulnerability severity threshold and attribution check enabled.
+- Adapt the custom upstream WebSocket handshake to the selected aiohttp parser API while preserving text decoding, uncompressed frames and buffered-message ownership.
 
 ## Capabilities
 
@@ -17,4 +18,4 @@ The current native CI run reaches the existing checks but reports dependency-ima
 
 ## Impact
 
-Changes are limited to development commands, dependency metadata/lock selections, the container package upgrade list and contributor records. Native CI and current-head review remain the acceptance gates. No application routing, database schema, release version or credentials change.
+Changes are limited to development commands, dependency metadata/lock selections, the container package upgrade list, contributor records and compatibility of the existing upstream WebSocket handshake. Native CI and current-head review remain the acceptance gates. No application routing, database schema, release version or credentials change.
